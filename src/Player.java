@@ -1,6 +1,6 @@
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.ArrayList;
 
 /*
  * This program defines a player of the game.
@@ -8,18 +8,25 @@ import java.util.ArrayList;
  */
 public class Player
 {
-	private int numReinforcements;//the total number of reinforcements the player can get
-	private int numReinforcementsAvailable;//how many more armies the player can deploy on this phase.
+	private int numReinforcements;// the total number of reinforcements the
+									// player can get
+	private int numReinforcementsAvailable;// how many more armies the player
+											// can deploy on this phase.
 	private ArrayList<Card> deck;
-	private Set<String> occupiedTerritories;//which locations the player has
-	private ArrayList<Achievement> notFulfilled;//achievements that the player has not yet obtained
+	private Set<String> occupiedTerritories;// which locations the player has
+	private ArrayList<Achievement> notFulfilled;// achievements that the player
+												// has not yet obtained
 
 	private String name;
 
 	/**
-	 * Default constructor. Takes the player's name and starting territory. Starts off with 3 reinforcements per turn
-	 * @param name: The name of the player
-	 * @param starter: The territory the player initially control.
+	 * Default constructor. Takes the player's name and starting territory.
+	 * Starts off with 3 reinforcements per turn
+	 * 
+	 * @param name:
+	 *            The name of the player
+	 * @param starter:
+	 *            The territory the player initially control.
 	 */
 	public Player(String name, String starter)
 	{
@@ -32,6 +39,7 @@ public class Player
 		deck = new ArrayList<Card>();
 		notFulfilled = new ArrayList<Achievement>(AchievementManager.achievements);
 	}
+
 	public int checkAchievements()
 	{
 		int bonus = 0;
@@ -51,9 +59,14 @@ public class Player
 
 	/**
 	 * Mounts an attack from a territory to another.
-	 * @param attacker: The territory that the attack is being mounted from.
-	 * @param other: The territory being invaded.
-	 * @param armies: The number of armies being used for the attack. If this number is zero, an all out attack is mounted
+	 * 
+	 * @param attacker:
+	 *            The territory that the attack is being mounted from.
+	 * @param other:
+	 *            The territory being invaded.
+	 * @param armies:
+	 *            The number of armies being used for the attack. If this number
+	 *            is zero, an all out attack is mounted
 	 * @return Returns result of battle.
 	 */
 	public boolean attackOther(Territory attacker, Territory other, int armies)
@@ -64,7 +77,7 @@ public class Player
 		{
 			if(other.getOccupier() != null)
 			{
-				other.getOccupier().occupiedTerritories.remove(other.getID());//Removes this territory from the other player's map
+				other.getOccupier().occupiedTerritories.remove(other.getID());
 			}
 			other.setOccupier(this);
 			occupiedTerritories.add(other.getID());
@@ -73,14 +86,16 @@ public class Player
 	}
 
 	/**
-	 * Gets the number of reinforcements available on a new turn according to the following rules:
-	 * Divide the number of territories by 3 and round down. Must be less than seven.
-	 * Also calculates the bonuses based on territories owned.
+	 * Gets the number of reinforcements available on a new turn according to
+	 * the following rules: Divide the number of territories by 3 and round
+	 * down. Must be less than seven. Also calculates the bonuses based on
+	 * territories owned. Returns number for AI purposes
 	 *
 	 */
-	public void calculateReinforcements()
+	public int calculateReinforcements()
 	{
-		if(occupiedTerritories.size() < 9) //Less than 9 armies means only 3 armies a turn
+		if(occupiedTerritories.size() < 9) // Less than 9 armies means only 3
+											// armies a turn
 		{
 			numReinforcements = 3;
 		}
@@ -89,13 +104,15 @@ public class Player
 			numReinforcements = occupiedTerritories.size() / 3;
 		}
 
-		//Calculates based on the number of sets owned.
+		// Calculates based on the number of sets owned.
 		numReinforcements += TerritoryMap.calculateArmyBonusFromContinents(occupiedTerritories);
 		numReinforcements += checkAchievements();
-		//Super Hax Mode: For use with Achievement testing only. Comment out if playing actual game :)
+		// Super Hax Mode: For use with Achievement testing only. Comment out if
+		// playing actual game :)
 		numReinforcements += 100;
 
 		numReinforcementsAvailable = numReinforcements;
+		return numReinforcementsAvailable;
 	}
 
 	/*
@@ -180,8 +197,35 @@ public class Player
 	{
 		deck.add(c);
 	}
+
 	public boolean hasNoTerritories()
 	{
 		return occupiedTerritories.isEmpty();
+	}
+
+	public Set<String> getHostileNeighbors(String territory)
+	{
+		Set<String> returnSet = new HashSet<String>();
+		for(String neighbor : TerritoryMap.get(territory).getAdjacentTerritories())
+		{
+			if(TerritoryMap.get(neighbor).getOccupier() != null
+					|| !this.equals(TerritoryMap.getOccupierOnTerritory(neighbor)))
+			{
+				returnSet.add(neighbor);
+			}
+		}
+		return returnSet;
+	}
+	public Set<String> getNeutralNeighbors(String territory)
+	{
+		Set<String> returnSet = new HashSet<String>();
+		for(String neighbor : TerritoryMap.get(territory).getAdjacentTerritories())
+		{
+			if(!getHostileNeighbors(territory).contains(neighbor) && !this.ownsTerritory(neighbor))
+			{
+				returnSet.add(neighbor);
+			}
+		}
+		return returnSet;
 	}
 }
