@@ -109,7 +109,7 @@ public class Player
 		numReinforcements += checkAchievements();
 		// Super Hax Mode: For use with Achievement testing only. Comment out if
 		// playing actual game :)
-		numReinforcements += 100;
+		//numReinforcements += 100;
 
 		numReinforcementsAvailable = numReinforcements;
 		return numReinforcementsAvailable;
