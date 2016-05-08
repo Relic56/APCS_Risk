@@ -59,7 +59,6 @@ public class Player
 
 	/**
 	 * Mounts an attack from a territory to another.
-<<<<<<< HEAD
 	 * 
 	 * @param attacker:
 	 *            The territory that the attack is being mounted from.
