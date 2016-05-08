@@ -70,7 +70,14 @@ public class AIPlayer extends Player
 			}
 		}
 	}
-	
+	/*
+	 * Chooses a territory to attack and attacks it. Much like depolying reinforcements, it depends on the
+	 * priority assigned to each territory.
+	 * Priority assigned as follows:
+	 * 1. Territory needed to complete continent set - assigned priority of 10.
+	 * 2. Neutral Territory: Assigned priority of 10-(surrounding number of neighbors)
+	 * 3. Territory belonging to other player: 
+	 */
 	public void attack()
 	{
 		
