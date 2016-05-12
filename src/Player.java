@@ -312,4 +312,12 @@ public class Player
 	{
 		return deck.size() != 0;
 	}
+	
+	public void displayCards()
+	{
+		for(Card c : deck)
+		{
+			System.out.print("[Territory: " + c.getTerritory() + " Value: " + c.getValue() +"]");
+		}
+	}
 }
