@@ -8,7 +8,7 @@ public class GameController
 	private Timeline timeline;
 	private int turn;
 	private int currentPlayerTurn; // Player currently playing
-
+	private CardDeck deck;
 	private static UserInterface userInterface;
 
 	public GameController()
@@ -20,7 +20,9 @@ public class GameController
 		turn = 0;
 		currentPlayerTurn = 0;
 
+
 		TerritoryMap.init();
+		deck = new CardDeck(TerritoryMap.getAllTerritories());
 		AchievementManager.init();
 
 		// Get player names and starting territories
@@ -35,6 +37,7 @@ public class GameController
 			userInterface.promptPlayerTurn(p);
 
 			// Perform the player actions
+			useCards(p);
 			deployReinforcements(p);
 			attackTerritory(p);
 			fortifyTroops(p);
@@ -47,12 +50,31 @@ public class GameController
 	//	Player Turn Methods
 	////////////////////////////////////////////////////////////
 
+	private void useCards(Player p)
+	{
+		if(!p.hasCards())
+			return;
+
+		switch(userInterface.selectCardUse())
+		{
+			case 1:
+				userInterface.useCard(p);
+				break;
+			case 2:
+				userInterface.tradeCardSets(p, deck);
+				break;
+			case 3:
+				break;
+		}
+
+	}
+
 	private void deployReinforcements(Player p)
 	{
 		p.calculateReinforcements();
 		while(p.getNumReinforcementsAvailable() > 0)
 		{
-			String territory = userInterface.selectDeployTerritory(p);
+			String territory = userInterface.getDeployTerritory(p);
 
 			if(!TerritoryMap.isValidTerritory(territory))
 			{
@@ -84,11 +106,17 @@ public class GameController
 
 	private void attackTerritory(Player p)
 	{
-		boolean doneAttacking = false;
-		while(!doneAttacking)
+		while(true)
 		{
-			doneAttacking = userInterface.getFinishedAttacking();
-			if(doneAttacking)
+			// Check if user has enough armies to attack with
+			if(!p.hasArmiesToAttackWith())
+			{
+				userInterface.generateWarning("You have no more armies to attack with!");
+				break;
+			}
+
+			// See if user wants to continue attacking
+			if(userInterface.getFinishedAttacking())
 				break;
 
 			// Get territory to attack
@@ -116,6 +144,11 @@ public class GameController
 					userInterface.generateWarning("Cannot attack from selected territory");
 					continue;
 				}
+				if(TerritoryMap.getNumArmiesDeployedOn(territoryToAttackFromID) < 2)
+				{
+					userInterface.generateWarning("Selected territory does not have enough armies to attack");
+					continue;
+				}
 
 				break;
 			}
@@ -141,7 +174,7 @@ public class GameController
 			if(results.getAttackSuccess())
 			{
 				timeline.addVictoryToTimeline(turn, territoryToAttack.getID(), p);
-				Card c = CardDeck.deal();
+				Card c = deck.deal();
 				p.addCards(c);
 			}
 			else
@@ -154,8 +187,65 @@ public class GameController
 
 	private void fortifyTroops(Player p)
 	{
-		// TODO Auto-generated method stub
+		if(p.getOccupiedTerritories().size() == 1)
+		{
+			userInterface.generateWarning("Nowhere to fortify from, skipping turn");
+			return;
+		}
+		if(!p.getCanFortify())
+		{
+			userInterface.generateWarning("Not enough armies to fortify anything, skipping turn");
+			return;
+		}
 
+		if(!userInterface.getWantsToFortify(p))
+			return;
+
+		while(true)
+		{
+			// Get territory to fortify
+			String territoryToFortifyID = userInterface.getTerritoryToFortify(p);
+			if(!p.canFortifyTerritory(territoryToFortifyID))
+			{
+				userInterface.generateWarning("You cannot fortify this territory");
+				continue;
+			}
+			Territory territoryToFortify = TerritoryMap.get(territoryToFortifyID);
+
+			// Get territory to fortify from
+			String territoryToFortifyFromID = userInterface.getTerritoryToFortifyFrom(p, territoryToFortifyID);
+			if(!TerritoryMap.isValidTerritory(territoryToFortifyFromID))
+			{
+				userInterface.generateWarning("Not a valid territory");
+				continue;
+			}
+			if(!territoryToFortify.isValidFortifier(territoryToFortifyFromID))
+			{
+				userInterface.generateWarning("Not a valid territory to fortify from");
+				continue;
+			}
+
+			// Get num armies to fortify with
+			int numArmies = userInterface.getNumArmiesToFortify(territoryToFortifyFromID);
+			if(numArmies >= TerritoryMap.getNumArmiesDeployedOn(territoryToFortifyFromID))
+			{
+				userInterface.generateWarning("Don't have that many armies to fortify with");
+				continue;
+			}
+			else if(numArmies < 0)
+			{
+				userInterface.generateWarning("Invalid number of armies");
+				continue;
+			}
+			else if(numArmies == 0)
+			{
+				userInterface.generateWarning("Cancelling Fortification");
+				break;
+			}
+
+			TerritoryMap.transferArmies(territoryToFortifyFromID, territoryToFortifyID, numArmies);
+			break;
+		}
 	}
 
 	////////////////////////////////////////////////////////////
@@ -164,40 +254,42 @@ public class GameController
 
 	private void initPlayers()
 	{
-		int numPlayers = userInterface.getNumPlayers();
+		//int numPlayers = userInterface.getNumPlayers();
 
-		for(int i = 0; i < numPlayers; i++)
-		{
-			String name = "";
-			boolean valid = false;
-			while(!valid)
-			{
-				valid = true;
-				name = userInterface.getPlayerName();
-				if(getPlayerNames().contains(name))
-				{
-					userInterface.generateWarning("Already player with that name");
-					valid = false;
-				}
-			}
-			String territory = "";
-			valid = false;
-			while(!valid)
-			{
-				territory = userInterface.getStartingTerritory(name);
-				if(TerritoryMap.get(territory) == null ||
-				        TerritoryMap.getOccupierOnTerritory(territory) != null)
-				{
-					userInterface.generateWarning("Not a valid territory");
-				}
-				else
-				{
-					valid = true;
-				}
-			}
+		//for(int i = 0; i < numPlayers; i++)
+		//{
+		//	String name = "";
+		//	boolean valid = false;
+		//	while(!valid)
+		//	{
+		//		valid = true;
+		//		name = userInterface.getPlayerName();
+		//		if(getPlayerNames().contains(name))
+		//		{
+		//			userInterface.generateWarning("Already player with that name");
+		//			valid = false;
+		//		}
+		//	}
+		//	String territory = "";
+		//	valid = false;
+		//	while(!valid)
+		//	{
+		//		territory = userInterface.getStartingTerritory(name);
+		//		if(TerritoryMap.get(territory) == null ||
+		//		        TerritoryMap.getOccupierOnTerritory(territory) != null)
+		//		{
+		//			userInterface.generateWarning("Not a valid territory");
+		//		}
+		//		else
+		//		{
+		//			valid = true;
+		//		}
+		//	}
 
-			players.add(new Player(name, territory));
-		}
+		//	players.add(new Player(name, territory));
+		//}
+		players.add(new Player("George", "Germany"));
+		players.add(new Player("Richard", "China"));
 	}
 
 	private Set<String> getPlayerNames()
@@ -208,7 +300,6 @@ public class GameController
 
 		return names;
 	}
-
 	private boolean isStillPlaying()
 	{
 		return players.size() != 1;

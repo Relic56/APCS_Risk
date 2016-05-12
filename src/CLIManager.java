@@ -20,25 +20,11 @@ public class CLIManager implements UserInterface
 	public int getNumPlayers()
 	{
 		System.out.println("How many players will be playing?");
-		boolean valid = false;
-		String input = "";
+
 		int numPlayers = 0;
-		while(!valid)
+		while(true)
 		{
-			try
-			{
-				input = br.readLine();
-				numPlayers = Integer.parseInt(input);
-			}
-			catch(NumberFormatException e)
-			{
-				generateWarning("Bad number of players");
-				continue;
-			}
-			catch(IOException e)
-			{
-				e.printStackTrace();
-			}
+			numPlayers = getNumberInput(0);
 
 			if(numPlayers < 2 || numPlayers > 5)
 			{
@@ -46,9 +32,10 @@ public class CLIManager implements UserInterface
 			}
 			else
 			{
-				valid = true;
+				break;
 			}
 		}
+
 		return numPlayers;
 	}
 
@@ -57,16 +44,7 @@ public class CLIManager implements UserInterface
 	{
 		System.out.print("Enter player name: ");
 
-		String name = "";
-		try
-		{
-			name = br.readLine();
-		}
-		catch(IOException e)
-		{
-			e.printStackTrace();
-		}
-
+		String name = getStringInput();
 		return name;
 	}
 
@@ -75,16 +53,7 @@ public class CLIManager implements UserInterface
 	{
 		System.out.print("Enter starting territory for " + playerName + ": ");
 
-		String territoryID = "";
-		try
-		{
-			territoryID = br.readLine();
-		}
-		catch(IOException e)
-		{
-			e.printStackTrace();
-		}
-
+		String territoryID = getStringInput();
 		return territoryID;
 	}
 
@@ -103,11 +72,150 @@ public class CLIManager implements UserInterface
 		System.out.println("--------------------");
 		System.out.println(playerName + "'s territories:");
 		System.out.println(territories);
-		//System.out.println(playerName + "'s cards");
-		//for(Card c : p.getCards())
-		//{
-		//	System.out.println(c.toString());
-		//}
+
+		System.out.println(playerName + "'s cards");
+		if(!p.hasCards())
+		{
+			System.out.println("(No Cards)");
+		}
+		else
+		{
+			for(Card c : p.getCards())
+			{
+				System.out.print("[" + c.toString() + "] ");
+			}
+			System.out.println();
+		}
+	}
+
+	////////////////////////////////////////////////////////////
+	//	Use Card Methods
+	////////////////////////////////////////////////////////////
+
+	public int selectCardUse()
+	{
+		String response = "";
+		boolean isDone = false;
+		while(!isDone)
+		{
+			System.out.println("Use a Card? Enter Y for yes or N for no ");
+			response = getStringInput();
+
+			if(response.equalsIgnoreCase("y"))
+				return 1;
+			else if(!response.equalsIgnoreCase("n"))
+			{
+				System.out.println("Enter Y or N");
+				continue;
+			}
+
+			System.out.println("Trade a Card? Enter Y for yes or N for no ");
+			response = getStringInput();
+
+			if(response.equalsIgnoreCase("y"))
+				return 2;
+			else if(!response.equalsIgnoreCase("n"))
+			{
+				System.out.println("Enter Y or N");
+				continue;
+			}
+			else if(response.equalsIgnoreCase("n"))
+				isDone = true;
+		}
+		return 3;
+	}
+
+	public Card selectCard(Player p)
+	{
+		if(!p.hasCards())
+		{
+			System.out.println("You do not have any cards");
+			return null;
+		}
+		String territory = "";
+		int value = 0;
+		Card c = null;
+
+		boolean isDone = false;
+		while(!isDone)
+		{
+			System.out.println("Enter the Territory of the card you want to use. Press Q to quit ");
+			territory = getStringInput();
+
+			if(territory.equalsIgnoreCase("q"))
+				return null;
+
+			System.out.println("Enter the number of armies of the card. Press Q to quit ");
+			value = getNumberInput(3);
+
+			if(territory.equalsIgnoreCase("q"))
+				return null;
+
+			c = new Card(territory, value);
+
+			if(!p.getCards().contains(c))
+			{
+				System.out.println("You do not own this card");
+				continue;
+			}
+			else if(!p.getOccupiedTerritories().contains(c.getTerritory()))
+			{
+				System.out.println("You do not own this territory");
+				continue;
+			}
+
+			isDone = true;
+
+		}
+		return c;
+	}
+
+	@Override
+	public void useCard(Player p) //TODO: allow player to exit
+	{
+		Card c = selectCard(p);
+		if(c == null)
+			return;
+		p.getCards().remove(c);
+		p.deployReinforcements(c.getTerritory(), c.getValue());
+	}
+
+	@Override
+	public void tradeCardSets(Player p, CardDeck deck) //TODO: actually trade with other players
+	{
+		if(p.getCards().size() < 3)
+		{
+			System.out.println("You do not have enough cards");
+			return;
+		}
+		Card c1 = null;
+		Card c2 = null;
+		Card c3 = null;
+		boolean isDone = false;
+
+		while(!isDone)
+		{
+			System.out.println("Select 3 cards to trade. The three cards must be the same value");
+			c1 = selectCard(p);
+			c2 = selectCard(p);
+			c3 = selectCard(p);
+			if(c1.getValue() != c2.getValue() || c2.getValue() != c3.getValue() || c1.getValue() != c3.getValue())
+			{
+				System.out.println("Must be 3 Cards of the same value");
+				continue;
+			}
+			isDone = true;
+		}
+
+		p.getCards().remove(c1);
+		p.getCards().remove(c2);
+		p.getCards().remove(c3);
+		deck.getDeck().add(c1);
+		deck.getDeck().add(c2);
+		deck.getDeck().add(c3);
+
+		p.addReinforcements((p.getSetsTraded() + 1) * 2);
+		p.incrementSets();
 	}
 
 	////////////////////////////////////////////////////////////
@@ -115,21 +223,12 @@ public class CLIManager implements UserInterface
 	////////////////////////////////////////////////////////////
 
 	@Override
-	public String selectDeployTerritory(Player p)
+	public String getDeployTerritory(Player p)
 	{
 		System.out.println("Total reinforcements for " + p.getName() + ": " + p.getNumReinforcementsAvailable());
 		System.out.print("Select territory to deploy to: ");
 
-		String terr = "";
-		try
-		{
-			terr = br.readLine();
-		}
-		catch(IOException e)
-		{
-			e.printStackTrace();
-		}
-
+		String terr = getStringInput();
 		return terr;
 	}
 
@@ -139,34 +238,9 @@ public class CLIManager implements UserInterface
 		System.out.println(deployTerritory + " has " + TerritoryMap.getNumArmiesDeployedOn(deployTerritory) + " armies on it");
 		System.out.print("How many armies to deploy? (default 1): ");
 
-		String numArmiesStr =  "";
 		int numArmies = 1;
 
-		// keep trying to parse valid input
-		while(true)
-		{
-			try
-			{
-				numArmiesStr = br.readLine();
-				if(numArmiesStr.equals(""))
-					numArmies = 1;
-				else if(numArmiesStr.equals("all"))
-					numArmies = p.getNumReinforcementsAvailable();
-				else
-					numArmies = Integer.parseInt(numArmiesStr);
-			}
-			catch(NumberFormatException e) // In case user enters non-numerical value
-			{
-				generateWarning("bad input, must be number, try again");
-				continue;
-			}
-			catch(IOException e)
-			{
-				e.printStackTrace();
-				continue;
-			}
-			break;
-		}
+		numArmies = getNumberInput(p.getNumReinforcementsAvailable());
 
 		return numArmies;
 	}
@@ -180,15 +254,7 @@ public class CLIManager implements UserInterface
 	{
 		System.out.print("Do you wish to continue attacking? (y/n): ");
 
-		String input = "";
-		try
-		{
-			input = br.readLine();
-		}
-		catch(IOException e)
-		{
-			e.printStackTrace();
-		}
+		String input = getStringInput();
 
 		if(!(input.equals("")) && input.toLowerCase().charAt(0) == 'n')
 		{
@@ -204,16 +270,7 @@ public class CLIManager implements UserInterface
 		System.out.println("Choose a territory to attack");
 		System.out.println(p.getAttackTargets());
 
-		String terr = "";
-		try
-		{
-			terr = br.readLine();
-		}
-		catch(IOException e)
-		{
-			e.printStackTrace();
-		}
-
+		String terr = getStringInput();
 		return terr;
 	}
 
@@ -221,51 +278,20 @@ public class CLIManager implements UserInterface
 	public String getTerritoryToAttackFrom(Player p, String territoryToAttack)
 	{
 		System.out.println("Choose a territory to attack from:");
-		System.out.println(TerritoryMap.get(territoryToAttack).getAdjacentTerritoriesOccupiedBy(p));
+		System.out.println(TerritoryMap.get(territoryToAttack).getValidAttackerTerritoriesOccupiedBy(p));
 
-		String terr = "";
-		try
-		{
-			terr = br.readLine();
-		}
-		catch(IOException e)
-		{
-			e.printStackTrace();
-		}
-
+		String terr = getStringInput();
 		return terr;
 	}
 
 	@Override
 	public int getNumArmiesToAttackWith(Player p, String territoryToAttackID, String territoryToAttackFromID)
 	{
+		int maxArmies = TerritoryMap.getNumArmiesDeployedOn(territoryToAttackFromID) - 1;
 		System.out.println("Choose number of armies to attack with. Opponent has " + TerritoryMap.getNumArmiesDeployedOn(territoryToAttackID));
-		System.out.println("You have " + (TerritoryMap.getNumArmiesDeployedOn(territoryToAttackFromID) - 1) + " armies (1 must stay behind)");
+		System.out.println("You have " + maxArmies + " armies (1 must stay behind)");
 
-		int numArmies = 0;
-		String numArmiesStr = "";
-		try
-		{
-			numArmiesStr = br.readLine();
-			if(numArmiesStr.equals(""))
-				numArmies = 1;
-			else if(numArmiesStr.equals("all"))
-				numArmies = TerritoryMap.getNumArmiesDeployedOn(territoryToAttackFromID) - 1;
-			else
-			{
-				numArmies = Integer.parseInt(numArmiesStr);
-			}
-		}
-		catch(IOException e)
-		{
-			e.printStackTrace();
-		}
-		catch(NumberFormatException e)
-		{
-			System.err.println("Bad number of armies");
-			return -1;
-		}
-
+		int numArmies = getNumberInput(maxArmies);
 		return numArmies;
 	}
 
@@ -275,6 +301,66 @@ public class CLIManager implements UserInterface
 		System.out.println(results.getAttackSuccess() ? "Attacker Won" : "Defender Won");
 		System.out.println("Attacker Losses: " + results.getNumAttackerLosses());
 		System.out.println("Defender Losses: " + results.getNumDefenderLosses());
+	}
+
+	////////////////////////////////////////////////////////////
+	//	Fortify Troops methods
+	////////////////////////////////////////////////////////////
+
+	@Override
+	public boolean getWantsToFortify(Player p)
+	{
+		System.out.print("Do you want to fortify? (y/n): ");
+		String input = getStringInput();
+
+		while(true)
+		{
+			if(input.length() == 0)
+				return false;
+
+			switch(input.toLowerCase().charAt(0))
+			{
+				case 'y':
+					return true;
+				case 'n':
+					return false;
+				default:
+					generateWarning("Bad input, try again");
+					continue;
+			}
+		}
+
+	}
+
+	@Override
+	public String getTerritoryToFortify(Player p)
+	{
+		System.out.println("Select a territory to fortify");
+		System.out.println(p.getFortifyTargets());
+
+		String terr = getStringInput();
+		return terr;
+	}
+
+	@Override
+	public String getTerritoryToFortifyFrom(Player p, String terrID)
+	{
+		Territory terr = TerritoryMap.get(terrID);
+
+		System.out.println("Select a territory to fortify from");
+		System.out.println(terr.getValidFortifiers());
+
+		String terrToFortifyFrom = getStringInput();
+		return terrToFortifyFrom;
+	}
+
+	public int getNumArmiesToFortify(String terrToFortFrom)
+	{
+		int maxArmies = TerritoryMap.getNumArmiesDeployedOn(terrToFortFrom) - 1;
+		System.out.println("Number of armies to send (max of " + maxArmies + "):");
+
+		int numArmies = getNumberInput(maxArmies);
+		return numArmies;
 	}
 
 	////////////////////////////////////////////////////////////
@@ -297,5 +383,55 @@ public class CLIManager implements UserInterface
 		{
 			e.printStackTrace();
 		}
+	}
+
+	private String getStringInput()
+	{
+		String str = "";
+		try
+		{
+			str = br.readLine();
+		}
+		catch(IOException e)
+		{
+			e.printStackTrace();
+		}
+
+		return str;
+	}
+
+	private int getNumberInput(int defaultMax)
+	{
+		int num = 0;
+		String numStr = "";
+		while(true)
+		{
+			try
+			{
+				numStr = br.readLine();
+				if(numStr.equals(""))
+					num = 1;
+				else if(numStr.equals("all"))
+					num = defaultMax;
+				else
+				{
+					num = Integer.parseInt(numStr);
+				}
+			}
+			catch(IOException e)
+			{
+				e.printStackTrace();
+				continue;
+			}
+			catch(NumberFormatException e)
+			{
+				System.err.println("Bad input, need integer input");
+				return -1;
+			}
+
+			break;
+		}
+
+		return num;
 	}
 }

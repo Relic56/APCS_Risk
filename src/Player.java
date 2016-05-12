@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 /*
@@ -13,9 +14,9 @@ public class Player
 	private int numReinforcementsAvailable;// how many more armies the player
 											// can deploy on this phase.
 	private ArrayList<Card> deck;
-	private Set<String> occupiedTerritories;// which locations the player has
-	private ArrayList<Achievement> notFulfilled;// achievements that the player
-												// has not yet obtained
+	private Set<String> occupiedTerritories;//which locations the player has
+	private ArrayList<Achievement> notFulfilled;//achievements that the player has not yet obtained
+	private int setsTraded;
 
 	private String name;
 
@@ -30,6 +31,7 @@ public class Player
 	 */
 	public Player(String name, String starter)
 	{
+		setsTraded = 0;
 		numReinforcements = 3;
 		occupiedTerritories = new HashSet<String>();
 		occupiedTerritories.add(starter);
@@ -142,6 +144,9 @@ public class Player
 		Set<String> returnSet = new HashSet<String>();
 		for(String s : occupiedTerritories)
 		{
+			if(TerritoryMap.getNumArmiesDeployedOn(s) < 2)
+				continue;
+
 			Territory t = TerritoryMap.get(s);
 			Set<String> neighbors = t.getAdjacentTerritories();
 			for(String k : neighbors)
@@ -185,6 +190,8 @@ public class Player
 		return TerritoryMap.continentIsSubsetOfSet(c, occupiedTerritories);
 	}
 
+	// Returns true if selected territory neighbors a player owned territory
+	// and if at least 1 neighbor territory has at least 2 armies
 	public boolean isValidAttackTarget(String t)
 	{
 		return getAttackTargets().contains(t);
@@ -234,5 +241,75 @@ public class Player
 			}
 		}
 		return returnSet;
+	}
+	// Return true if player has at least 2 armies on at least 1 territory
+	public boolean hasArmiesToAttackWith()
+	{
+		for(String terrID : occupiedTerritories)
+		{
+			if(TerritoryMap.getNumArmiesDeployedOn(terrID) > 1)
+				return true;
+		}
+		return false;
+	}
+
+	public int getSetsTraded()
+	{
+		return setsTraded;
+	}
+
+	public void addReinforcements(int num)
+	{
+		numReinforcements += num;
+	}
+
+	public void incrementSets()
+	{
+		setsTraded++;
+	}
+
+	// returns all the owned territories that have at least one
+	// adjacent territory with at least 1 army
+	public Set<String> getFortifyTargets()
+	{
+		Set<String> targets = new HashSet<String>(occupiedTerritories);
+
+		Iterator<String> iter = targets.iterator();
+		while(iter.hasNext())
+		{
+			String terrID = iter.next();
+
+			Iterator<String> neighborIter = TerritoryMap.get(terrID).getAdjacentTerritoriesOccupiedBy(this).iterator();
+			while(neighborIter.hasNext())
+			{
+				String neighborTerr = neighborIter.next();
+				int numRemoved = 0;
+				if(TerritoryMap.getNumArmiesDeployedOn(neighborTerr) < 2)
+				{
+					// in case we need to remove more than 1 element, advance the iterator
+					if(numRemoved != 0)
+						iter.next();
+					iter.remove();
+					numRemoved ++;
+				}
+			}
+		}
+
+		return targets;
+	}
+
+	public boolean getCanFortify()
+	{
+		return getFortifyTargets().size() != 0;
+	}
+
+	public boolean canFortifyTerritory(String territoryToFortifyFromID)
+	{
+		return getFortifyTargets().contains(territoryToFortifyFromID);
+	}
+
+	public boolean hasCards()
+	{
+		return deck.size() != 0;
 	}
 }
