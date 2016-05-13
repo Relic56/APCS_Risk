@@ -2,6 +2,9 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+
+import main.Player;
+import territoryMap.TerritoryMap;
 /*
  * Implements a not very intelligent AI.
  */
